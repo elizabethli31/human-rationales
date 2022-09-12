@@ -1,6 +1,3 @@
-TRAIN_FLAG = True
-CACHING_FLAG = True
-
 dataset = {
     "name": "BoolQ",
     "train_path": "../boolQ/train_data.csv",

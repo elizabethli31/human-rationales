@@ -9,6 +9,5 @@ training_args_config = {
 	"learning_rate": 1e-3,
 	"logging_steps": 500,
 	"num_train_epochs": 5,
-	# "warmup_steps": 50,
 	"logging_dir": "",
 }

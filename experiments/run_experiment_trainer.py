@@ -1,10 +1,5 @@
-import logging
-
-# from util.choose_gpu import choose_and_set_available_gpus
-# choose_and_set_available_gpus()
 import sys
 sys.path.append('../')
-# sys.exit(0)
 from transformers import Trainer, TrainingArguments, EvalPrediction, PretrainedConfig
 from typing import Callable, Dict
 import sklearn.metrics as mt
@@ -12,14 +7,10 @@ import numpy as np
 
 from config.data_config import dataset
 from datasets_prep.dataset import prepare_data
-from datasets_prep.dataset import create_test_dataloader, create_dataloader
+from datasets_prep.dataset import create_test_dataloader
 from config.trainer_config import training_args_config
 from config.model_config import model_dict1, model_info
-#from util.param_combo import get_param_combos
 from train_eval.feature_caching import get_and_save_features
-# from train_eval.create_fidelity_curves import create_fidelity_curves
-# from train_eval.eval_pytorch import eval_fn
-# from util.saving_utils import copy_features
 
 import os
 import torch
@@ -29,10 +20,6 @@ import json
 def build_compute_metrics_fn() -> Callable[[EvalPrediction], Dict]:
 	def compute_metrics_fn(p: EvalPrediction):
 		preds = p.predictions[0] if isinstance(p.predictions, tuple) else p.predictions
-		# if output_mode == "classification":
-		# 	preds = np.argmax(preds, axis=1)
-		# else:  # regression
-		# 	preds = np.squeeze(preds)
 		preds = np.argmax(preds, axis=1)
 		return {"acc": mt.accuracy_score(p.label_ids, preds)}
 
@@ -46,7 +33,6 @@ if __name__ == '__main__':
     for model_name in model_dict1['model']:
         tunable_model_args = model_info[model_name]["tunable_model_args"]
         dset = DATASET
-        #output_dir = os.path.join(OUTPUT_DIR, )
         model_save_path = os.path.join(OUTPUT_DIR, model_name)
 
         model_config = PretrainedConfig(
@@ -78,7 +64,8 @@ if __name__ == '__main__':
 			output_dir=output_dir,
 			save_steps=save_steps,
 			**training_args_config,
-			#**tunable_training_args
+            gradient_accumulation_steps=5,
+            gradient_checkpointing=True
         )
 
         print("training")

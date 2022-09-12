@@ -1,15 +1,11 @@
 import torch
 import pandas as pd
-import os
-import json
-import numpy as np
 
 class Dataset(torch.utils.data.Dataset):
 	def __init__(self, X, labels, attention_masks, BATCH_SIZE_FLAG=32):
 		"""Initialization"""
 		self.y = labels
 		self.X = X
-		# self.rationale = rationale
 		self.attention_masks = attention_masks
 		self.BATCH_SIZE_FLAG = BATCH_SIZE_FLAG
 
@@ -21,7 +17,6 @@ class Dataset(torch.utils.data.Dataset):
 		"""Get individual item from the tensor"""
 		sample = {"input_ids": self.X[index],
 				  "labels": self.y[index],
-				  # "rationale": self.rationale[index],
 				  "attention_mask": self.attention_masks[index]
 				  }
 		return sample
@@ -31,41 +26,23 @@ def prepare_data(model, classes, train_path, eval_path, test_path=None, batch_si
 
 	train_dataloader = create_dataloader(model, classes, train_path, max_rows=max_rows, batch_size=batch_size, max_len=max_len, return_dataset=return_dataset, name=name)
 	eval_dataloader = create_dataloader(model, classes, eval_path, max_rows=max_rows, batch_size=batch_size, max_len=max_len, return_dataset=return_dataset, name=name)
-	# test_dataloader = create_dataloader(model, classes, test_path, max_rows=max_rows, batch_size=batch_size,
-	# max_len=max_len, return_dataset=return_dataset)
+
 	return train_dataloader, eval_dataloader
 
 def create_dataloader(model, classes, filepath, batch_size=32, max_rows=None, class_specific=None, max_len=512, return_dataset=False, name=None):
-	"""Preparing dataloader"""
-	data_df = pd.read_csv(filepath)
+	data_df = pd.read_csv(filepath, error_bad_lines=False, engine='python')
 	data_df = data_df[data_df['text'].notna()]
 	data_df.reset_index(drop=True, inplace=True)
-	# convert rationale column to list from string
+
 	try:
 		data_df = data_df[data_df['rationale'].notna()]
 		data_df.reset_index(drop=True, inplace=True)
-		# try:
-		# 	data_df["rationale"] = data_df['rationale'].apply(lambda s: json.loads(s))
-		# except Exception as e:
-		# 	# for handling rationale string from wikiattack
-		# 	data_df["rationale"] = data_df["rationale"].apply(lambda s: s.strip("[").strip("]").split())
 	except Exception as e:
 		pass
 
 	if max_rows is not None:
 		data_df = data_df.iloc[:max_rows]
 
-	# if name == "E-SNLI":
-	# 	# temp solution
-	# 	crop_len = get_crop_length(data_df)
-	# 	model.max_len = crop_len
-
-	# if name == "E-SNLI Reduced":
-	# 	# temp solution
-	# 	crop_len = get_crop_length(data_df)
-	# 	model.max_len = crop_len
-
-	# train_df['input_ids'], train_df['attention_mask'] = train_df['text'].apply(self.tokenize)
 	data_df['text']= data_df['text'].apply(lambda t:t.replace('[SEP]',model.tokenizer.sep_token))
 
 	data_df['input_ids'], data_df['attention_mask'] = zip(*data_df['text'].map(model.tokenize))
@@ -73,18 +50,13 @@ def create_dataloader(model, classes, filepath, batch_size=32, max_rows=None, cl
 	input_id_tensor = torch.tensor(data_df['input_ids'])
 	attention_mask_tensor = torch.tensor(data_df['attention_mask'])
 
-	# rationale_tensor = torch.tensor(data_df['rationale'].apply(lambda s: s + [0]*(model.max_len - len(s))))
 	labels_tensor = create_label_tensor(data_df, classes)
 	if class_specific is not None:
-		# input_id_tensor, labels_tensor, rationale_tensor, attention_mask_tensor = \
-		# 	reduce_data_class_specific(input_id_tensor, labels_tensor, rationale_tensor,
-		# 							   attention_mask_tensor, class_specific)
 		pass
 
 	dataset_ds = Dataset(input_id_tensor, labels_tensor, attention_mask_tensor,
 						 BATCH_SIZE_FLAG=batch_size)
-	# if return_dataset:
-	# 	return dataset_ds
+
 	return dataset_ds
     #torch.utils.data.DataLoader(dataset_ds, batch_size=dataset_ds.BATCH_SIZE_FLAG, shuffle=True)
 
@@ -126,33 +98,10 @@ class TestDataset(torch.utils.data.Dataset):
 		}
 		return sample
 
-def create_test_dataloader(model,
-						   filepath,
-						   classes,
-						   batch_size=16,
-						   #rationale_occlusion_rate=None,
-						   ):
-	"""preparing the test dataloader"""
-	data_df = pd.read_csv(filepath)
+def create_test_dataloader(model, filepath, classes, batch_size=32):
+	data_df = pd.read_csv(filepath, error_bad_lines=False, engine='python')
 
-	if "rationale" not in data_df.columns:
-		data_df["rationale"] = data_df["text"].apply(lambda s: s.strip("[").strip("]").split())
-
-	data_df = data_df[data_df['rationale'].notna()]
-	data_df.reset_index(drop=True, inplace=True)
-	try:
-		data_df["rationale"] = data_df['rationale'].apply(lambda s: json.loads(s))
-	except Exception as e:
-		# for handling rationale string from wikiattack
-		data_df["rationale"] = data_df["rationale"].apply(lambda s: s.strip("[").strip("]").split())
-		data_df["rationale"] = [[float(xx) for xx in x] for x in data_df["rationale"]]
-
-	#because SST rationale values are sometimes 0.5 and we don't want that to cause problems later
 	data_df["rationale"] = data_df["rationale"].apply(binarize_rationale)
-
-	# if rationale_occlusion_rate is not None:
-	# 	print(f'Randomly occluding rationales at rate {rationale_occlusion_rate}')
-	# 	data_df['rationale'] = data_df["rationale"].apply(lambda r: occlude_rationale(r,rate=rationale_occlusion_rate))
 
 	data_df["sufficiency_text"] = data_df[
 		["text", "rationale"]].apply(lambda s: reduce_by_alpha(*s, fidelity_type="sufficiency"), axis=1)
@@ -201,7 +150,6 @@ def binarize_rationale(rationale):
 
 def reduce_by_alpha(text, rationale, fidelity_type="sufficiency"):
 	reduced_text = ""
-	# whitespace tokenization
 	tokens = text.split()
 
 	for idx in range(len(tokens)):
@@ -214,7 +162,6 @@ def reduce_by_alpha(text, rationale, fidelity_type="sufficiency"):
 			if fidelity_type == "comprehensiveness":
 				reduced_text = reduced_text + tokens[idx] + " "
 
-	# removed the last space from the text
 	if len(reduced_text) > 0:
 		reduced_text = reduced_text[:-1]
 
