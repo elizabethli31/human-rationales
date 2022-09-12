@@ -33,8 +33,6 @@ def itemwize_normalization(fidelity, null_difference, fidelity_type, clip, eps):
 	clip=False Eraser's definition of sufficiency and comprehensiveness
 	Explain denominator
 	"""
-	# Have a bunch of unit tests to test your functions
-	# test if null diff == 1 - suff at 0
 	try:
 		if fidelity_type == "sufficiency":
 			numerator = (fidelity - (1 - null_difference))
@@ -101,9 +99,6 @@ def compute_predictions(input_ids,
 	else:
 		result = model.forward(input_ids=input_ids.to(model.device))
 
-	# result['probs'] = torch.nn.functional.softmax(result['logits'], dim=1)
-	# result['py_index'] = torch.argmax(result['probs'], dim=1)
-
 	return result["py_index"].detach().cpu().numpy(), result["probs"].detach().cpu().numpy()
 
 
@@ -147,11 +142,6 @@ def reduce(input_ids, rationale=None, tokenizer=None, fidelity_type="sufficiency
 	:param fidelity_type:
 	:return:
 	"""
-	# unit test this function
-	# unit test where you call the model on the reduced data
-	# create a model where you can test easily
-	# eyeball few example by calling tokenizer input_ids reduced, attention masks reduced,
-	# put a breakpoint in the model forward and look at the input ids when you call the reduced prediction
 	input_ids_reduced = []
 	attention_mask_reduced = []
 	for idx in range(len(input_ids)):

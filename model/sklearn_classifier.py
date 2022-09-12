@@ -86,7 +86,7 @@ class SklearnTokenizer:
 		tokenized_dict = self.tokenizer.encode_plus(
 			text=text,
 			add_special_tokens=True,
-			pad_to_max_length=True,
+			padding='max_length',
 
 			max_length=self.max_length,
 

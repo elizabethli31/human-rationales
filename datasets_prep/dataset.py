@@ -1,5 +1,6 @@
 import torch
 import pandas as pd
+import json
 
 class Dataset(torch.utils.data.Dataset):
 	def __init__(self, X, labels, attention_masks, BATCH_SIZE_FLAG=32):
@@ -99,8 +100,16 @@ class TestDataset(torch.utils.data.Dataset):
 		return sample
 
 def create_test_dataloader(model, filepath, classes, batch_size=32):
-	data_df = pd.read_csv(filepath, error_bad_lines=False, engine='python')
+	data_df = pd.read_csv(filepath)
 
+	if "rationale" not in data_df.columns:
+		data_df["rationale"] = data_df["text"].apply(lambda s: s.strip("[").strip("]").split())
+
+	data_df = data_df[data_df['rationale'].notna()]
+	data_df.reset_index(drop=True, inplace=True)
+	data_df["rationale"] = data_df['rationale'].apply(lambda s: json.loads(s))
+
+	#because SST rationale values are sometimes 0.5 and we don't want that to cause problems later
 	data_df["rationale"] = data_df["rationale"].apply(binarize_rationale)
 
 	data_df["sufficiency_text"] = data_df[
@@ -127,7 +136,7 @@ def create_test_dataloader(model, filepath, classes, batch_size=32):
 	labels_tensor = create_label_tensor(data_df, classes)
 
 	test_dataset_ds = TestDataset(
-		id=data_df["annotation_id"],
+		id=data_df["id"],
 		input_ids=input_id_tensor,
 		attention_mask=attention_mask_tensor,
 		sufficiency_input_ids=sufficiency_input_id_tensor,
@@ -166,3 +175,45 @@ def reduce_by_alpha(text, rationale, fidelity_type="sufficiency"):
 		reduced_text = reduced_text[:-1]
 
 	return reduced_text
+
+
+# Sklearn
+def prepare_data_sklearn(tokenizer, train_path, test_path, classes=None):
+	train_df = create_tokenized_data(tokenizer, train_path, classes)
+	test_df = create_tokenized_data(tokenizer, test_path, classes)
+	return train_df, test_df
+
+def create_tokenized_data(tokenizer, filepath, classes):
+	data_df = pd.read_csv(filepath)
+	data_df['input_ids'], data_df['attention_mask'] = zip(*data_df['text'].map(tokenizer.tokenize))
+	data_df["labels"] = data_df['classification'].apply(lambda x: classes.index(x))
+	return data_df
+
+def create_test_data_sklearn(tokenizer, filepath, classes):
+	"""preparing the test dataloader"""
+	data_df = pd.read_csv(filepath)
+
+	data_df = data_df[data_df['rationale'].notna()]
+	data_df.reset_index(drop=True, inplace=True)
+	data_df["rationale"] = data_df['rationale'].apply(lambda s: json.loads(s))
+
+	data_df["sufficiency_text"] = data_df[
+		["text", "rationale"]].apply(lambda s: reduce_by_alpha(*s, fidelity_type="sufficiency"), axis=1)
+	data_df["comprehensiveness_text"] = data_df[
+		["text", "rationale"]].apply(lambda s: reduce_by_alpha(*s, fidelity_type="comprehensiveness"), axis=1)
+	data_df["null_diff_text"] = data_df[
+		["text", "rationale"]].apply(lambda s: reduce_by_alpha(*s, fidelity_type="null_diff"), axis=1)
+
+	data_df['sufficiency_input_ids'], data_df['sufficiency_attention_mask'] =\
+		zip(*data_df['sufficiency_text'].map(tokenizer.tokenize))
+	data_df['comprehensiveness_input_ids'], data_df['comprehensiveness_attention_mask'] =\
+		zip(*data_df['comprehensiveness_text'].map(tokenizer.tokenize))
+	data_df['null_diff_input_ids'], data_df['null_diff_attention_mask'] = \
+		zip(*data_df['null_diff_text'].map(tokenizer.tokenize))
+
+	data_df['input_ids'], data_df['attention_mask'] = \
+		zip(*data_df['text'].map(tokenizer.tokenize))
+
+	data_df["labels"] = data_df['classification'].apply(lambda x: classes.index(x))
+
+	return data_df

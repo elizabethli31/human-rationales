@@ -12,11 +12,9 @@ class LSTMClassifier(PreTrainedModel, ABC):
 		super().__init__(config, *inputs, **kwargs)
 
 		self.max_len = config.max_length
-		# self.packed_embedding = config.packed_embedding
 		self.tokenizer = RobertaTokenizerFast.from_pretrained('roberta-base')
 
 		self.embedding = RobertaModel.from_pretrained('roberta-base').embeddings
-		# BiLSTM hidden size = 2 times hidden size
 		self.lstm = nn.LSTM(
 			input_size=embedding_length,
 			batch_first=True,
@@ -25,7 +23,6 @@ class LSTMClassifier(PreTrainedModel, ABC):
 			dropout=0.2,
 			bidirectional=True
 		)
-		# self.tanh = nn.Tanh()
 		self.predictor = nn.Linear(in_features=config.hidden_size * 2, out_features=config.num_labels)
 		self.pad_packing = config.pad_packing
 
@@ -41,7 +38,6 @@ class LSTMClassifier(PreTrainedModel, ABC):
 		else:
 			hidden, state = self.lstm.forward(input=embedding)
 
-		# out = torch.stack([context[0][0], context[0][1]], dim=1)
 		out = torch.cat([state[0][0], state[0][1]], dim=1)
 
 		logits = self.predictor(input=out)

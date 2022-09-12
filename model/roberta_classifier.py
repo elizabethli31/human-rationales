@@ -36,19 +36,12 @@ class RobertaClassifier(PreTrainedModel, ABC):
 		)
 		return tokenized_dict['input_ids'], tokenized_dict['attention_mask']
 
-	# The `max_len` attribute has been deprecated and will be removed in a future version, use `model_max_length` instead.
-	#   FutureWarning,
-
 	def forward(self, input_ids=None, labels=None, attention_mask=None, rationale=None):
-		# _, o2 = self.generator(input_ids, attention_masks=attention_masks)
-		# assert input_ids[:, 0] == self.tokenizer.cls_token_id * torch.ones_like(input_ids[:, 0])
 		result = self.model.forward(
 			input_ids=input_ids,
 			labels=labels,
 			attention_mask=attention_mask
 		)
-		# take the results off cuda
-		# result["logits"] = result["logits"].detach().cpu()
 		result['probs'] = torch.nn.functional.softmax(result['logits'], dim=1)
 		result['py_index'] = torch.argmax(result['probs'], dim=1)
 		return result
