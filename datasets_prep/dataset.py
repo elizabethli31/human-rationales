@@ -1,6 +1,10 @@
 import torch
 import pandas as pd
 import json
+import sys
+
+sys.path.append('../')
+from boolQ.make_csv_data import get_data
 
 class Dataset(torch.utils.data.Dataset):
 	def __init__(self, X, labels, attention_masks, BATCH_SIZE_FLAG=32):
@@ -31,7 +35,7 @@ def prepare_data(model, classes, train_path, eval_path, test_path=None, batch_si
 	return train_dataloader, eval_dataloader
 
 def create_dataloader(model, classes, filepath, batch_size=32, max_rows=None, class_specific=None, max_len=512, return_dataset=False, name=None):
-	data_df = pd.read_csv(filepath, error_bad_lines=False, engine='python')
+	data_df = get_data(filepath)
 	data_df = data_df[data_df['text'].notna()]
 	data_df.reset_index(drop=True, inplace=True)
 
@@ -100,7 +104,7 @@ class TestDataset(torch.utils.data.Dataset):
 		return sample
 
 def create_test_dataloader(model, filepath, classes, batch_size=32):
-	data_df = pd.read_csv(filepath)
+	data_df = get_data(filepath)
 
 	if "rationale" not in data_df.columns:
 		data_df["rationale"] = data_df["text"].apply(lambda s: s.strip("[").strip("]").split())
@@ -184,14 +188,14 @@ def prepare_data_sklearn(tokenizer, train_path, test_path, classes=None):
 	return train_df, test_df
 
 def create_tokenized_data(tokenizer, filepath, classes):
-	data_df = pd.read_csv(filepath)
+	data_df = get_data(filepath)
 	data_df['input_ids'], data_df['attention_mask'] = zip(*data_df['text'].map(tokenizer.tokenize))
 	data_df["labels"] = data_df['classification'].apply(lambda x: classes.index(x))
 	return data_df
 
 def create_test_data_sklearn(tokenizer, filepath, classes):
 	"""preparing the test dataloader"""
-	data_df = pd.read_csv(filepath)
+	data_df = get_data(filepath)
 
 	data_df = data_df[data_df['rationale'].notna()]
 	data_df.reset_index(drop=True, inplace=True)

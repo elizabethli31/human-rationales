@@ -64,8 +64,7 @@ if __name__ == '__main__':
 			output_dir=output_dir,
 			save_steps=save_steps,
 			**training_args_config,
-            gradient_accumulation_steps=5,
-            gradient_checkpointing=True
+            gradient_accumulation_steps=5
         )
 
         print("training")
