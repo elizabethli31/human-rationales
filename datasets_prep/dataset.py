@@ -159,14 +159,14 @@ def create_test_dataloader(model, filepath, classes, batch_size=32):
 def reduce_by_alpha(text, rationale, fidelity_type):
     reduced_text = ""
     tokens = text.split()
-    evidences=evidences.lower()
+    rationale=rationale.lower()
 
     for token in tokens:
         token = token.lower()
         try:
             if fidelity_type=="sufficiency" and contains_word(rationale, token):
                 reduced_text = reduced_text + token + " "
-            elif fidelity_type=="comprehensiveness" and not contains_word(evidences, token):
+            elif fidelity_type=="comprehensiveness" and not contains_word(rationale, token):
                 reduced_text = reduced_text + token + " "
         except Exception as e:
             if fidelity_type == "comprehensiveness":
@@ -201,11 +201,11 @@ def create_test_data_sklearn(tokenizer, filepath, classes):
 	data_df["evidences"] = data_df['evidences'].apply(lambda s: json.loads(s))
 
 	data_df["sufficiency_text"] = data_df[
-		["text", "rationale"]].apply(lambda s: reduce_by_alpha(*s, fidelity_type="sufficiency"), axis=1)
+		["text", "evidences"]].apply(lambda s: reduce_by_alpha(*s, fidelity_type="sufficiency"), axis=1)
 	data_df["comprehensiveness_text"] = data_df[
-		["text", "rationale"]].apply(lambda s: reduce_by_alpha(*s, fidelity_type="comprehensiveness"), axis=1)
+		["text", "evidences"]].apply(lambda s: reduce_by_alpha(*s, fidelity_type="comprehensiveness"), axis=1)
 	data_df["null_diff_text"] = data_df[
-		["text", "rationale"]].apply(lambda s: reduce_by_alpha(*s, fidelity_type="null_diff"), axis=1)
+		["text", "evidences"]].apply(lambda s: reduce_by_alpha(*s, fidelity_type="null_diff"), axis=1)
 
 	data_df['sufficiency_input_ids'], data_df['sufficiency_attention_mask'] =\
 		zip(*data_df['sufficiency_text'].map(tokenizer.tokenize))
