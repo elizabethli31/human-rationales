@@ -13,12 +13,13 @@ def read_json(file):
 def flatten_json(data):
     for d in data:
         rationales = d.get('evidences')[0].get('text')
+        query = d.get('query')
         d.update(evidences=rationales)
 
         new_id = d.get('docids').split('/')[-1]
         d.update(docids=new_id)
 
-        text_file = open(('/content/human-rationales/boolQ/docs/' + new_id), "r")
+        text_file = open(('../boolQ/input/docs/' + new_id), "r")
         text_data = text_file.read()
         text_file.close()
         d['text'] = text_data
@@ -27,7 +28,7 @@ def flatten_json(data):
     return df
 
 def get_data(name):
-    data = read_json('/content/human-rationales/boolQ/' + name + '.jsonl')
+    data = read_json('../boolQ/input/' + name + '.jsonl')
     df = flatten_json(data)
     return df
 
