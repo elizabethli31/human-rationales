@@ -11,7 +11,7 @@ import pickle
 import numpy as np
 import pandas as pd
 
-OUTPUT_DIR = "../outputs"
+OUTPUT_DIR = "/content/human-rationales/output"
 DATASET = config.dataset
 
 if __name__ == '__main__':

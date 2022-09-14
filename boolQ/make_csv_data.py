@@ -23,9 +23,12 @@ def flatten_json(data):
         text_file.close()
         d['text'] = text_data
 
-        # if d['classification'] == True
-
     df = pd.DataFrame(data)
+    return df
+
+def get_data(name):
+    data = read_json('../boolQ/input/' + name + '.jsonl')
+    df = flatten_json(data)
     return df
 
 if __name__ == '__main__':
@@ -37,14 +40,11 @@ if __name__ == '__main__':
     #     df.rename(columns={'evidences':'rationale'}, inplace=True)
     #     df.to_csv(dset + '.csv')
 
-    data = read_json('input/train_data.jsonl')
-    df = flatten_json(data)
+    #data = read_json('input/train_data.jsonl')
+    df = get_data('dev_data')
+    print(df['rationales'].dtype)
 
-def get_data(name):
-    data = read_json('../boolQ/input/' + name + '.jsonl')
-    df = flatten_json(data)
-    df.rename(columns={'evidences':'rationales'}, inplace=True)
-    return df
+
     
     
     

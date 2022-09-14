@@ -73,7 +73,6 @@ class LogisticRegressionSKLearnClassifier(SKLearnClassifier):
 			train_df=train_df,
 			max_length=max_length,
 			**tunable_model_args,
-            tokenizer=SklearnTokenizer
 		)
 
 

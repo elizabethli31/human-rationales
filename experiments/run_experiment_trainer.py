@@ -25,7 +25,7 @@ def build_compute_metrics_fn() -> Callable[[EvalPrediction], Dict]:
 
 	return compute_metrics_fn
 
-OUTPUT_DIR = "../outputs"
+OUTPUT_DIR = "/content/human-rationale/output"
 DATASET = dataset
 
 

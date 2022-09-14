@@ -33,7 +33,7 @@ class LSTMClassifier(PreTrainedModel, ABC):
 
 		if self.pad_packing:
 			input_lengths = attention_mask.sum(dim=1)
-			packed_embeddings = pack_padded_sequence(embedding, input_lengths, batch_first=True, enforce_sorted=False)
+			packed_embeddings = pack_padded_sequence(embedding, input_lengths.cpu(), batch_first=True, enforce_sorted=False)
 			packed_output, state = self.lstm.forward(packed_embeddings)
 		else:
 			hidden, state = self.lstm.forward(input=embedding)
@@ -55,7 +55,7 @@ class LSTMClassifier(PreTrainedModel, ABC):
 		tokenized_dict = self.tokenizer.encode_plus(
 			text=text,
 			add_special_tokens=True,
-			pad_to_max_length=True,
+			padding='max_length',
 			max_length=self.max_len,
 			return_attention_mask=True,
 			truncation=True

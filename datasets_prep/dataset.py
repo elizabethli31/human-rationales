@@ -40,7 +40,7 @@ def create_dataloader(model, classes, filepath, batch_size=32, max_rows=None, cl
 	data_df.reset_index(drop=True, inplace=True)
 
 	try:
-		data_df = data_df[data_df['rationale'].notna()]
+		data_df = data_df[data_df['evidences'].notna()]
 		data_df.reset_index(drop=True, inplace=True)
 	except Exception as e:
 		pass
@@ -106,20 +106,18 @@ class TestDataset(torch.utils.data.Dataset):
 def create_test_dataloader(model, filepath, classes, batch_size=32):
 	data_df = get_data(filepath)
 
-	if "rationale" not in data_df.columns:
-		data_df["rationale"] = data_df["text"].apply(lambda s: s.strip("[").strip("]").split())
+	if "evidences" not in data_df.columns:
+		data_df["evidences"] = data_df["text"].apply(lambda s: s.strip("[").strip("]").split())
 
-	data_df = data_df[data_df['rationale'].notna()]
+	data_df = data_df[data_df['evidences'].notna()]
 	data_df.reset_index(drop=True, inplace=True)
-	data_df["rationale"] = data_df['rationale'].apply(lambda s: json.loads(s))
+	data_df["evidences"] = data_df['evidences'].apply(lambda s: json.loads(s))
 
-	#because SST rationale values are sometimes 0.5 and we don't want that to cause problems later
-	data_df["rationale"] = data_df["rationale"].apply(binarize_rationale)
 
 	data_df["sufficiency_text"] = data_df[
-		["text", "rationale"]].apply(lambda s: reduce_by_alpha(*s, fidelity_type="sufficiency"), axis=1)
+		["text", "evidences"]].apply(lambda s: reduce_by_alpha(*s, fidelity_type="sufficiency"), axis=1)
 	data_df["comprehensiveness_text"] = data_df[
-		["text", "rationale"]].apply(lambda s: reduce_by_alpha(*s, fidelity_type="comprehensiveness"), axis=1)
+		["text", "evidences"]].apply(lambda s: reduce_by_alpha(*s, fidelity_type="comprehensiveness"), axis=1)
 
 	data_df['sufficiency_input_ids'], data_df['sufficiency_attention_mask'] =\
 		zip(*data_df['sufficiency_text'].map(model.tokenize))
@@ -140,7 +138,7 @@ def create_test_dataloader(model, filepath, classes, batch_size=32):
 	labels_tensor = create_label_tensor(data_df, classes)
 
 	test_dataset_ds = TestDataset(
-		id=data_df["id"],
+		id=data_df["annotation_id"],
 		input_ids=input_id_tensor,
 		attention_mask=attention_mask_tensor,
 		sufficiency_input_ids=sufficiency_input_id_tensor,
@@ -157,29 +155,30 @@ def create_test_dataloader(model, filepath, classes, batch_size=32):
 	return test_dataloader
 
 
-def binarize_rationale(rationale):
-	rationale = [1.0 if x >= 0.5 else 0.0 for x in rationale]
-	return rationale
 
-def reduce_by_alpha(text, rationale, fidelity_type="sufficiency"):
-	reduced_text = ""
-	tokens = text.split()
+def reduce_by_alpha(text, rationale, fidelity_type):
+    reduced_text = ""
+    tokens = text.split()
+    evidences=evidences.lower()
 
-	for idx in range(len(tokens)):
-		try:
-			if fidelity_type == "sufficiency" and rationale[idx] >= 0.5:
-				reduced_text = reduced_text + tokens[idx] + " "
-			elif fidelity_type == "comprehensiveness" and rationale[idx] < 0.5:
-				reduced_text = reduced_text + tokens[idx] + " "
-		except Exception as e:
-			if fidelity_type == "comprehensiveness":
-				reduced_text = reduced_text + tokens[idx] + " "
+    for token in tokens:
+        token = token.lower()
+        try:
+            if fidelity_type=="sufficiency" and contains_word(rationale, token):
+                reduced_text = reduced_text + token + " "
+            elif fidelity_type=="comprehensiveness" and not contains_word(evidences, token):
+                reduced_text = reduced_text + token + " "
+        except Exception as e:
+            if fidelity_type == "comprehensiveness":
+                reduced_text = reduced_text + token + " "
+    
+    if len(reduced_text) > 0:
+        reduced_text = reduced_text[:-1]
 
-	if len(reduced_text) > 0:
-		reduced_text = reduced_text[:-1]
+    return reduced_text
 
-	return reduced_text
-
+def contains_word(sentence, word):
+    return (' ' + word + ' ') in (' ' + sentence + ' ')
 
 # Sklearn
 def prepare_data_sklearn(tokenizer, train_path, test_path, classes=None):
@@ -197,9 +196,9 @@ def create_test_data_sklearn(tokenizer, filepath, classes):
 	"""preparing the test dataloader"""
 	data_df = get_data(filepath)
 
-	data_df = data_df[data_df['rationale'].notna()]
+	data_df = data_df[data_df['evidences'].notna()]
 	data_df.reset_index(drop=True, inplace=True)
-	data_df["rationale"] = data_df['rationale'].apply(lambda s: json.loads(s))
+	data_df["evidences"] = data_df['evidences'].apply(lambda s: json.loads(s))
 
 	data_df["sufficiency_text"] = data_df[
 		["text", "rationale"]].apply(lambda s: reduce_by_alpha(*s, fidelity_type="sufficiency"), axis=1)
